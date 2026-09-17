@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f7f5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="家の在庫" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>家の在庫管理</title>
+  <style>
+    :root{
+      --bg:#f7f7f5; --card:#ffffff; --text:#181818; --muted:#777;
+      --border:#e4e4df; --accent:#181818; --accentText:#fff;
+      --soft:#efefeb; --danger:#b3261e;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#111; --card:#191919; --text:#f3f3f3; --muted:#aaa;
+        --border:#2b2b2b; --accent:#f3f3f3; --accentText:#111;
+        --soft:#222; --danger:#ff8178;
+      }
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      padding:env(safe-area-inset-top) 14px calc(20px + env(safe-area-inset-bottom));
+    }
+    .app{max-width:680px;margin:0 auto}
+    h1{font-size:28px;margin:18px 0 4px}
+    .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .sum{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:14px;text-align:center}
+    .sum b{display:block;font-size:24px;margin-top:5px}
+    .controls{display:flex;gap:8px;overflow:auto;padding:14px 0 8px}
+    button,select,input{
+      font:inherit
+    }
+    button{
+      min-height:44px;border:1px solid var(--border);background:var(--card);
+      color:var(--text);border-radius:14px;padding:0 14px
+    }
+    button.active{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
+    .mode{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    .item{
+      background:var(--card);border:1px solid var(--border);border-radius:18px;
+      padding:14px;margin-bottom:10px
+    }
+    .top{display:flex;gap:12px;align-items:center}
+    .grow{flex:1;min-width:0}
+    .name{font-weight:700;word-break:break-word}
+    .cat{font-size:12px;color:var(--muted);margin-top:4px}
+    .status{font-weight:700;min-width:84px}
+    .status.low,.status.empty{background:var(--soft)}
+    .actions{display:flex;justify-content:flex-end;margin-top:8px}
+    .delete{border:none;background:transparent;color:var(--muted)}
+    .form{
+      background:var(--card);border:1px solid var(--border);border-radius:18px;
+      padding:14px;margin-top:18px
+    }
+    label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+    input,select{
+      width:100%;min-height:46px;border:1px solid var(--border);border-radius:14px;
+      background:var(--bg);color:var(--text);padding:0 12px;font-size:16px
+    }
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .add{width:100%;margin-top:10px;background:var(--accent);color:var(--accentText);border-color:var(--accent);font-weight:700}
+    .empty{color:var(--muted);text-align:center;padding:26px 10px}
+    .foot{color:var(--muted);font-size:12px;text-align:center;margin:18px 0}
+    .install{display:none;background:var(--soft);border-radius:16px;padding:12px;margin:14px 0;font-size:13px;line-height:1.5}
+    @media(max-width:420px){ .grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>家の在庫管理</h1>
+  <div class="sub">なくなる前に、ワンタップで管理。</div>
+
+  <div id="installHint" class="install">
+    iPhoneではSafariの共有ボタン →「ホーム画面に追加」でアプリのように使えます。
+  </div>
+
+  <section class="summary">
+    <div class="sum"><span>在庫あり</span><b id="okCount">0</b></div>
+    <div class="sum"><span>少ない</span><b id="lowCount">0</b></div>
+    <div class="sum"><span>ない</span><b id="emptyCount">0</b></div>
+  </section>
+
+  <div id="cats" class="controls"></div>
+
+  <div class="mode">
+    <button id="allMode" class="active">在庫一覧</button>
+    <button id="buyMode">買うものだけ</button>
+  </div>
+
+  <div id="list"></div>
+  <div id="emptyState" class="empty" hidden>該当するものはありません。</div>
+
+  <section class="form">
+    <div class="grid">
+      <div>
+        <label for="name">品目</label>
+        <input id="name" placeholder="例：キッチンペーパー">
+      </div>
+      <div>
+        <label for="cat">カテゴリ</label>
+        <select id="cat">
+          <option>キッチン</option>
+          <option>洗面・風呂</option>
+          <option>トイレ</option>
+          <option>掃除・洗濯</option>
+          <option>日用品</option>
+          <option>食品</option>
+          <option>その他</option>
+        </select>
+      </div>
+    </div>
+    <button id="addBtn" class="add">品目を追加</button>
+  </section>
+
+  <div class="foot">データはこの端末内に保存されます。</div>
+</div>
+
+<script>
+const STORAGE_KEY = "home-stock-pwa-v1";
+const defaults = [
+  {id:"1",name:"トイレットペーパー",cat:"トイレ",status:"low"},
+  {id:"2",name:"ティッシュ",cat:"日用品",status:"ok"},
+  {id:"3",name:"食器用洗剤",cat:"キッチン",status:"ok"},
+  {id:"4",name:"ゴミ袋",cat:"キッチン",status:"low"},
+  {id:"5",name:"シャンプー",cat:"洗面・風呂",status:"ok"},
+  {id:"6",name:"ボディソープ",cat:"洗面・風呂",status:"empty"},
+  {id:"7",name:"歯磨き粉",cat:"洗面・風呂",status:"low"},
+  {id:"8",name:"洗濯洗剤",cat:"掃除・洗濯",status:"ok"}
+];
+
+let state = {items:[],category:"全部",mode:"all"};
+try{
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  state = saved && Array.isArray(saved.items) ? saved : {...state,items:defaults};
+}catch{
+  state = {...state,items:defaults};
+}
+
+const cats = ["全部","キッチン","洗面・風呂","トイレ","掃除・洗濯","日用品","食品","その他"];
+const nextStatus = {ok:"low",low:"empty",empty:"ok"};
+const statusLabel = {ok:"ある",low:"少ない",empty:"ない"};
+
+const $ = s => document.querySelector(s);
+const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+function renderCats(){
+  const wrap = $("#cats");
+  wrap.innerHTML = "";
+  cats.forEach(cat=>{
+    const b=document.createElement("button");
+    b.textContent=cat;
+    if(state.category===cat) b.classList.add("active");
+    b.addEventListener("click",()=>{state.category=cat;save();render();});
+    wrap.appendChild(b);
+  });
+}
+
+function render(){
+  renderCats();
+  $("#allMode").classList.toggle("active",state.mode==="all");
+  $("#buyMode").classList.toggle("active",state.mode==="buy");
+  $("#okCount").textContent=state.items.filter(x=>x.status==="ok").length;
+  $("#lowCount").textContent=state.items.filter(x=>x.status==="low").length;
+  $("#emptyCount").textContent=state.items.filter(x=>x.status==="empty").length;
+
+  let shown = state.items.filter(x=>state.category==="全部" || x.cat===state.category);
+  if(state.mode==="buy") shown=shown.filter(x=>x.status!=="ok");
+
+  const list=$("#list"); list.innerHTML="";
+  $("#emptyState").hidden=shown.length>0;
+
+  shown.forEach(item=>{
+    const card=document.createElement("div");
+    card.className="item";
+
+    const top=document.createElement("div");
+    top.className="top";
+
+    const text=document.createElement("div");
+    text.className="grow";
+    const name=document.createElement("div");
+    name.className="name"; name.textContent=item.name;
+    const cat=document.createElement("div");
+    cat.className="cat"; cat.textContent=item.cat;
+    text.append(name,cat);
+
+    const status=document.createElement("button");
+    status.className="status "+item.status;
+    status.textContent=statusLabel[item.status];
+    status.addEventListener("click",()=>{
+      item.status=nextStatus[item.status];
+      save();render();
+    });
+
+    top.append(text,status);
+
+    const actions=document.createElement("div");
+    actions.className="actions";
+    const del=document.createElement("button");
+    del.className="delete"; del.textContent="削除";
+    del.addEventListener("click",()=>{
+      if(confirm(`「${item.name}」を削除しますか？`)){
+        state.items=state.items.filter(x=>x.id!==item.id);
+        save();render();
+      }
+    });
+    actions.appendChild(del);
+    card.append(top,actions);
+    list.appendChild(card);
+  });
+}
+
+$("#allMode").addEventListener("click",()=>{state.mode="all";save();render();});
+$("#buyMode").addEventListener("click",()=>{state.mode="buy";save();render();});
+
+$("#addBtn").addEventListener("click",()=>{
+  const name=$("#name").value.trim();
+  if(!name){ $("#name").focus(); return; }
+  state.items.push({
+    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+    name,
+    cat: $("#cat").value,
+    status:"ok"
+  });
+  $("#name").value="";
+  save();render();
+});
+
+if(/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone){
+  $("#installHint").style.display="block";
+}
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+
+render();
+</script>
+</body>
+</html>
